@@ -4,84 +4,161 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net"
 	"sync"
-	model "tcp/model"
+	"tcp/model"
 )
 
 var (
-	clients = make(map[net.Conn]model.Message)
+	clients = make(map[net.Conn]model.User)
 	mutex   = sync.Mutex{}
-	rooms   = model.Room{}
+	rooms   = map[string]int{"main": 0}
 )
-
-func line(name, role, room, msg string) {
-	fmt.Printf("User <%s> with role <%s> send <%s> in room <%s>.\n", name, role, msg, room)
-}
 
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
 	fmt.Println("Client connected:", conn.RemoteAddr())
-	scanner := bufio.NewScanner(conn)
-
+	var m model.User
 	mutex.Lock()
-	clients[conn] = model.Message{}
+	clients[conn] = m
+	rooms["main"]++
 	mutex.Unlock()
-	scanner.Scan()
-	var m model.Send
+	scanner := bufio.NewScanner(conn)
+	var event model.Event
 	for scanner.Scan() {
-		err := json.Unmarshal(scanner.Bytes(), &m)
+		err := json.Unmarshal(scanner.Bytes(), &event)
 		if err != nil {
 			fmt.Println("Error decoding JSON:", err)
 			continue
 		}
-		fmt.Println(m.Update)
-		if m.Update == true {
-			mutex.Lock()
-			rooms = m.Message.Room
-			mutex.Unlock()
-			SendMessage(m.Message, conn, true)
-			continue
+		switch event.Type {
+		case "message":
+			var m model.Message
+			if err := json.Unmarshal(event.Json, &m); err == nil {
+				Line(conn, m)
+				event.Type = "message"
+				m.Username = clients[conn].Username
+				m.Role = clients[conn].Role
+				msg, _ := json.Marshal(m)
+				event.Json = msg
+				SendAction(event, clients[conn], conn)
+			}
+		case "user":
+			var u model.User = model.User{ID: MakeId()}
+			if err := json.Unmarshal(event.Json, &u); err == nil {
+				mutex.Lock()
+				clients[conn] = u
+				mutex.Unlock()
+				SendUser(conn, u.ID)
+				var usrEvent model.Command
+				usrEvent.Username = clients[conn].Username
+				usr, _ := json.Marshal(usrEvent)
+				event.Prepare(usr, "join")
+				SendAction(event, clients[conn], conn)
+			}
+		case "command":
+			var c model.Command
+			if err := json.Unmarshal(event.Json, &c); err == nil {
+				switch c.Command {
+				case "admin":
+					admin(c, conn, event)
+				case "room":
+					Room(c, conn)
+				}
+			}
 		}
-
-		line(m.Message.Username, m.Message.Role, m.Message.Room.CurrentRoom, m.Message.Msg)
-
-		mutex.Lock()
-		clients[conn] = m.Message
-		mutex.Unlock()
-
-		SendMessage(m.Message, conn, false)
 	}
-
+	var usrEvent model.Command
+	usrEvent.Username = clients[conn].Username
+	usr, _ := json.Marshal(usrEvent)
+	event.Prepare(usr, "leave")
+	SendAction(event, clients[conn], conn)
 	mutex.Lock()
+	rooms[clients[conn].Room]++
 	delete(clients, conn)
 	mutex.Unlock()
 }
 
-func LenUserRoom(m model.Message) (num int) {
-	for i := range clients {
-		if clients[i].Room.CurrentRoom == m.Room.CurrentRoom {
-			num++
-		}
+func SendCommand(event model.Event, conn net.Conn, t string) {
+	var usrEvent model.Command
+	usrEvent.Username = clients[conn].Username
+	usr, _ := json.Marshal(usrEvent)
+	event.Type = t
+	event.Json = usr
+	data, _ := json.Marshal(event)
+	fmt.Fprintln(conn, string(data))
+}
+
+func Room(c model.Command, conn net.Conn) {
+	switch c.Action {
+	case "list":
+		var event model.Event
+		c.Rooms = rooms
+		r, _ := json.Marshal(c)
+		event.Type = "room"
+		event.Json = r
+		data, _ := json.Marshal(event)
+		fmt.Fprintln(conn, string(data))
+	}
+}
+
+func admin(c model.Command, conn net.Conn, event model.Event) {
+	switch c.Key {
+	case "admin":
+		changeUser(conn, "admin")
+		SendCommand(event, conn, "admin_in")
+		SendUser(conn, clients[conn].ID)
+	case "out":
+		changeUser(conn, "user")
+		SendCommand(event, conn, "admin_out")
+		SendUser(conn, clients[conn].ID)
+	case "admin_err_key":
+		SendCommand(event, conn, "admin_err_key")
 	}
 	return
 }
 
-func SendMessage(m model.Message, conn net.Conn, flag bool) {
+func SendUser(conn net.Conn, id int) (m model.User) {
+	var event model.Event
+	usr, _ := json.Marshal(clients[conn])
+	data := event.Prepare(usr, "user")
+	fmt.Fprintln(conn, string(data))
+	return
+}
+
+func SendAction(event model.Event, usr model.User, conn net.Conn) {
 	mutex.Lock()
 	defer mutex.Unlock()
-	var s model.Send
-	s.Message.Room.LenUser = LenUserRoom(m)
-	s.Message = m
-	if flag == true {
-		s.Update = true
-	}
-	data, _ := json.Marshal(s)
+	data, _ := json.Marshal(event)
 	for c, s := range clients {
-		if c != conn && s.Room.CurrentRoom == m.Room.CurrentRoom {
+		if c != conn && s.Room == usr.Room {
 			fmt.Fprintln(c, string(data))
 		}
 	}
+}
+
+func changeUser(conn net.Conn, role string) {
+	mutex.Lock()
+	n := clients[conn]
+	n.Role = role
+	clients[conn] = n
+	mutex.Unlock()
+}
+
+func Line(conn net.Conn, m model.Message) {
+	usr := clients[conn]
+	fmt.Printf("User <%s> with role <%s> send <%s> in room <%s>.\n", usr.Username, usr.Role, m.Msg, usr.Room)
+}
+
+func MakeId() (id int) {
+	id = rand.Intn(50)
+	for _, i := range clients {
+		if i.ID == id {
+			id = rand.Intn(len(clients) * 5)
+		}
+	}
+	return
 }
 
 func main() {
