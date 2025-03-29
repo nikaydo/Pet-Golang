@@ -14,8 +14,6 @@ import (
 var (
 	user    model.User
 	msgTime string = fmt.Sprintf("%s", time.Now().Format("15:04:05"))
-	room    string = user.Room
-	rooms          = make(map[string]int)
 )
 
 func myLine(t bool) {
@@ -25,21 +23,26 @@ func myLine(t bool) {
 		msgTime = curTime
 	}
 	curTime = msgTime
-	fmt.Printf("%s %s@%s:~/%s$ ", curTime, user.Username, user.Role, room)
+	fmt.Printf("%s %s@%s:~/%s$ ", curTime, user.Username, user.Role, user.Room)
 }
 
 func lineFromServer(m model.Message) {
 	curTime := fmt.Sprintf("%s", time.Now().Format("15:04:05"))
-	fmt.Printf("%s %s@%s:~/%s$ %s\n", curTime, m.Username, m.Role, room, m.Msg)
+	fmt.Printf("%s %s@%s:~/%s$ %s\n", curTime, m.Username, m.Role, user.Room, m.Msg)
 }
 
-func firstConn(conn net.Conn) (u model.User, err error) {
+func firstConn(conn net.Conn) (u model.User) {
 	user.Default()
-	usr, _ := json.Marshal(user)
+	usr, err := json.Marshal(user)
+	if err != nil {
+		fmt.Println(err)
+	}
 	var event model.Event
-	event.Prepare(usr, "user")
-	data, _ := json.Marshal(event)
-	fmt.Fprintln(conn, string(data))
+	data := event.Prepare(usr, "user")
+	_, err = fmt.Fprintln(conn, data)
+	if err != nil {
+		fmt.Println("Error:", err)
+	}
 	return
 }
 
@@ -53,7 +56,6 @@ func ReadMessage(conn net.Conn) {
 				var m model.User
 				if err := json.Unmarshal(event.Json, &m); err == nil {
 					user = m
-					room = m.Room
 					fmt.Print("\r\033[K")
 					myLine(false)
 				}
@@ -68,38 +70,20 @@ func ReadMessage(conn net.Conn) {
 				var m model.Command
 				if err := json.Unmarshal(event.Json, &m); err == nil {
 					fmt.Print("\r\033[K")
-					rooms = m.Rooms
 					for s, n := range m.Rooms {
 						fmt.Println("Room:", s, " Users: ", n)
 					}
 					myLine(false)
 				}
-			case "join", "leave", "admin", "admin_err_key", "admin_out":
-				Actions(event)
 			default:
-				continue
+				var m model.Command
+				if err := json.Unmarshal(event.Json, &m); err == nil {
+					fmt.Print("\r\033[K")
+					fmt.Println(event.Type)
+					myLine(false)
+				}
 			}
 		}
-	}
-}
-
-func Actions(event model.Event) {
-	var m model.Command
-	if err := json.Unmarshal(event.Json, &m); err == nil {
-		fmt.Print("\r\033[K")
-		switch event.Type {
-		case "join":
-			fmt.Println("", m.Username, "joined")
-		case "leave":
-			fmt.Println("", m.Username, "leave")
-		case "admin":
-			fmt.Println("Now you are admin!")
-		case "admin_out":
-			fmt.Println("Now you are user!")
-		case "admin_err_key":
-			fmt.Println("Wrong key!")
-		}
-		myLine(false)
 	}
 }
 
@@ -123,14 +107,10 @@ func main() {
 		user.Username = n
 		good = false
 	}
-	user, err = firstConn(conn)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+	user = firstConn(conn)
 	go ReadMessage(conn)
 	var event model.Event
-	var m model.Message = model.Message{ID: user.ID}
+	var m model.Message
 	for scanner.Scan() {
 		myLine(true)
 		m.Msg = scanner.Text()
@@ -138,21 +118,26 @@ func main() {
 			continue
 		}
 		if m.Msg[0] == 33 {
+			fmt.Print("\r\033[K")
 			mod, err := c.Com(m.Msg)
-
+			if err != nil {
+				fmt.Println(err)
+				myLine(true)
+				continue
+			}
+			cmd, err := json.Marshal(mod)
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
-			cmd, _ := json.Marshal(mod)
-			event.Prepare(cmd, "command")
-			data, _ := json.Marshal(event)
-			fmt.Fprintln(conn, string(data))
+			fmt.Fprintln(conn, event.Prepare(cmd, "command"))
 			continue
 		}
-		msg, _ := json.Marshal(m)
-		event.Prepare(msg, "message")
-		data, _ := json.Marshal(event)
-		fmt.Fprintln(conn, string(data))
+		msg, err := json.Marshal(m)
+		if err != nil {
+			fmt.Println(err)
+
+		}
+		fmt.Fprintln(conn, event.Prepare(msg, "message"))
 	}
 }

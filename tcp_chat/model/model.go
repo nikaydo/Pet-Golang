@@ -5,19 +5,19 @@ import (
 )
 
 type Event struct {
-	Type string `json:"type"`
-	Json json.RawMessage
+	Type string          `json:"type"`
+	Json json.RawMessage `json:"json"`
 }
 
-func (e *Event) Prepare(b json.RawMessage, t string) (data []byte) {
+func (e *Event) Prepare(b json.RawMessage, t string) (data string) {
 	e.Type = t
 	e.Json = b
-	data, _ = json.Marshal(e)
+	d, _ := json.Marshal(e)
+	data = string(d)
 	return
 }
 
 type User struct {
-	ID       int    `json:"id"`
 	Username string `json:"username"`
 	Role     string `json:"role"`
 	Room     string `json:"rooms"`
@@ -30,7 +30,6 @@ func (m *User) Prepare(u, r, room string) {
 }
 
 type Message struct {
-	ID       int    `json:"id"`
 	Username string `json:"username"`
 	Role     string `json:"role"`
 	Msg      string `json:"message"`
@@ -48,18 +47,6 @@ type Command struct {
 	Action   string         `json:"user"`
 	Username string         `json:"username"`
 	Rooms    map[string]int `json:"rooms"`
-}
-
-func (c *Command) Prepare(usr User) {
-
-	c.Username = usr.Username
-}
-
-func (c *Command) Fill(key, command, action string, rooms map[string]int) {
-	c.Key = key
-	c.Command = command
-	c.Action = action
-	c.Rooms = rooms
 }
 
 func (m *User) Default() {
