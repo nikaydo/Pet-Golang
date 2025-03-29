@@ -3,7 +3,3 @@ A simple API for tracking expenses using Go, Chi, and JWT for authentication.
 
 
 
-
-# TODO 
-добавить мут 
-команда mute name time причина это отправляеться пользователю
