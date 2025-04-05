@@ -3,7 +3,7 @@ package jwt
 import (
 	"errors"
 	"log"
-	myenv "main/env"
+	env "main/internal/config"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -20,17 +20,17 @@ type NewJwtClaims struct {
 	claims jwt.MapClaims
 }
 
-func (n *NewJwtClaims) setVar(id int, username string, role string, timed time.Duration, exTime int) *jwt.Token {
-	n.claims = jwt.MapClaims{
-		"sub":      id,
-		"username": username,
-		"iss":      "server",
-		"role":     role,
-		"aud":      "money manager",
-		"exp":      time.Now().Add(timed * time.Duration(exTime)).Unix(),
-		"iat":      time.Now().Unix(),
-	}
-	return jwt.NewWithClaims(jwt.SigningMethodHS256, n.claims)
+func (n *NewJwtClaims) setVar(id int, username string, role string, exTime time.Duration) *jwt.Token {
+	return jwt.NewWithClaims(jwt.SigningMethodHS256,
+		jwt.MapClaims{
+			"sub":      id,
+			"username": username,
+			"iss":      "server",
+			"role":     role,
+			"aud":      "money manager",
+			"exp":      time.Now().Add(exTime).Unix(),
+			"iat":      time.Now().Unix(),
+		})
 }
 
 type JwtTokens struct {
@@ -38,15 +38,11 @@ type JwtTokens struct {
 	AccessClaims  jwt.MapClaims
 	RefreshToken  string
 	RefreshClaims jwt.MapClaims
-	env           myenv.FromENV
+	Env           env.Config
 }
 
-func (j *JwtTokens) getEnv() error {
-	err := j.env.SetEnv()
-	if err != nil {
-		return err
-	}
-	return nil
+func (j *JwtTokens) GetEnv() {
+	j.Env = env.GetConfig()
 }
 
 func (j *JwtTokens) CreateTokens(id int, username string, role string) error {
@@ -65,13 +61,9 @@ func (j *JwtTokens) CreateTokens(id int, username string, role string) error {
 }
 
 func (j *JwtTokens) CreateJwtToken(id int, username string, role string) error {
-	err := j.getEnv()
-	if err != nil {
-		return err
-	}
 	var claims NewJwtClaims
-	cl := claims.setVar(id, username, role, time.Minute, j.env.ExpiredTimeForJWT)
-	tokenString, err := cl.SignedString([]byte(j.env.SecretKeyForJWT))
+	cl := claims.setVar(id, username, role, j.Env.TTL.AccessToken)
+	tokenString, err := cl.SignedString([]byte(j.Env.Keys.SecretKeyForJWT))
 	if err != nil {
 		return err
 	}
@@ -80,13 +72,9 @@ func (j *JwtTokens) CreateJwtToken(id int, username string, role string) error {
 }
 
 func (j *JwtTokens) CreateRefreshToken(id int, username string, role string) error {
-	err := j.getEnv()
-	if err != nil {
-		return err
-	}
 	var claims NewJwtClaims
-	cl := claims.setVar(id, username, role, time.Hour, j.env.ExpiredTimeForRefresh)
-	tokenString, err := cl.SignedString([]byte(j.env.SecretKeyForRefresh))
+	cl := claims.setVar(id, username, role, j.Env.TTL.RefreshToken)
+	tokenString, err := cl.SignedString([]byte(j.Env.Keys.SecretKeyForRefresh))
 	if err != nil {
 		return err
 	}
@@ -95,15 +83,11 @@ func (j *JwtTokens) CreateRefreshToken(id int, username string, role string) err
 }
 
 func (j *JwtTokens) ValidateJwt() error {
-	err := j.getEnv()
-	if err != nil {
-		return err
-	}
 	token, err := jwt.Parse(j.AccessToken, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, ErrValidSigningMethod
 		}
-		return []byte(j.env.SecretKeyForJWT), nil
+		return []byte(j.Env.Keys.SecretKeyForJWT), nil
 	})
 	if err != nil {
 		if err.Error() == "Token is expired" {
@@ -119,15 +103,11 @@ func (j *JwtTokens) ValidateJwt() error {
 }
 
 func (j *JwtTokens) ValidateRefresh() error {
-	err := j.getEnv()
-	if err != nil {
-		return err
-	}
-	token, err := jwt.Parse(j.AccessToken, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(j.RefreshToken, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, ErrValidSigningMethod
 		}
-		return []byte(j.env.SecretKeyForRefresh), nil
+		return []byte(j.Env.Keys.SecretKeyForRefresh), nil
 	})
 	if err != nil {
 		if err.Error() == "Token is expired" {
@@ -141,6 +121,7 @@ func (j *JwtTokens) ValidateRefresh() error {
 	}
 	return nil
 }
+
 func setClaims(token *jwt.Token) (jwt.MapClaims, error) {
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 		if exp, ok := claims["exp"].(float64); ok {

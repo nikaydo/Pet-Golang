@@ -32,3 +32,6 @@ API uses the following environment variables:
 ## Database
 
 API uses SQLite as a database. Database file is located in the `wallet.db` file in the root of the project.
+
+
+ 

@@ -1,0 +1,16 @@
+keys:
+  secretKeyForJWT : "secret"
+  secretKeyForRefresh : "secret"
+  secretForAES : "12345678901234567890123456789012"
+
+ttl:
+  accessToken: 1m
+  refreshToken : 1h
+  cookie : 10m
+
+server:
+  host : "localhost"
+  port : 8080 
+
+database:
+  path : "wallet.db"

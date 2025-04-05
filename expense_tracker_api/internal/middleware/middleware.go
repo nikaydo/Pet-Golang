@@ -1,14 +1,20 @@
 package middleware
 
 import (
+	"context"
 	"log"
-	h "main/handlers"
-	myjwt "main/jwt"
-	"main/wallet"
+	env "main/internal/config"
+	h "main/internal/handlers"
+	myjwt "main/internal/jwt"
+	rep "main/internal/repositories"
 	"net/http"
 )
 
-func CheckJWT(next http.Handler) http.Handler {
+type Middleware struct {
+	File *rep.File
+}
+
+func (f Middleware) CheckJWT(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c, err := r.Cookie("jwt")
 		if err != nil {
@@ -17,12 +23,7 @@ func CheckJWT(next http.Handler) http.Handler {
 			return
 		}
 		j := myjwt.JwtTokens{AccessToken: c.Value}
-		f, err := wallet.New("wallet.db")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		defer f.Close()
+		j.GetEnv()
 		err = j.ValidateJwt()
 		if err != nil {
 			if err == myjwt.ErrTokenExpired {
@@ -32,7 +33,7 @@ func CheckJWT(next http.Handler) http.Handler {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
 				}
-				u, err := f.GetUser(name)
+				u, err := f.File.GetUserByUsername(name)
 				if err != nil {
 					log.Println("Error getting refresh token:", err)
 					http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -51,7 +52,7 @@ func CheckJWT(next http.Handler) http.Handler {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
 				}
-				err = f.UpdateRefreshToken(u)
+				err = f.File.UpdateRefreshToken(u)
 				if err != nil {
 					log.Println("Error updating refresh token:", err)
 					http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -63,6 +64,16 @@ func CheckJWT(next http.Handler) http.Handler {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+
 		next.ServeHTTP(w, r)
 	})
+}
+func ConfigMiddleware(e env.Config) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+			ctx = context.WithValue(ctx, "config", e)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
 }
