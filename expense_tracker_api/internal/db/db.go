@@ -8,7 +8,8 @@ import (
 )
 
 func InitDB(path string) *sql.DB {
-	db, err := sql.Open("sqlite", path)
+	dir := "../storage/"
+	db, err := sql.Open("sqlite", dir+path)
 	if err != nil {
 		log.Fatal(err)
 		return db
