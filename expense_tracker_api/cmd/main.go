@@ -11,6 +11,10 @@ import (
 	"net/http"
 )
 
+// @title           Expense Tracker API
+// @version         1.0
+// @description     API for expense tracker
+// @host      localhost:8080
 func main() {
 	e := env.GetConfig()
 	database := db.InitDB(e.DB.Path)
@@ -21,7 +25,6 @@ func main() {
 	}
 	userService := services.NewUserService(userRepo)
 	h := handler.NewUserHandler(userService)
-
 	if err := http.ListenAndServe(fmt.Sprintf("%s:%d", e.Server.Host, e.Server.Port), rt.Router(e, h, userRepo)); err != nil {
 		fmt.Printf("Пу пу пу: %s", err.Error())
 		return

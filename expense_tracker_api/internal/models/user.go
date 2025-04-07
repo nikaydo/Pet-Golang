@@ -1,12 +1,18 @@
-package repositories
+package models
 
 import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
+	env "main/internal/config"
 
 	"golang.org/x/crypto/bcrypt"
+)
+
+var (
+	ErrInvalidDecrypted = errors.New("invalid encrypted data")
 )
 
 type User struct {
@@ -34,7 +40,7 @@ func (u *User) CheckPass(passHash string) error {
 	return nil
 }
 
-func (u *User) encryptRefresh() error {
+func (u *User) EncryptRefresh() error {
 	key, err := getAESKey()
 	if err != nil {
 		return err
@@ -56,7 +62,7 @@ func (u *User) encryptRefresh() error {
 	return nil
 }
 
-func (u *User) decryptRefresh() error {
+func (u *User) DecryptRefresh() error {
 	key, err := getAESKey()
 	if err != nil {
 		return err
@@ -83,4 +89,9 @@ func (u *User) decryptRefresh() error {
 	}
 	u.Refresh = string(plainText)
 	return nil
+}
+
+func getAESKey() ([]byte, error) {
+	env := env.GetConfig()
+	return []byte(env.Keys.SecretForAES), nil
 }

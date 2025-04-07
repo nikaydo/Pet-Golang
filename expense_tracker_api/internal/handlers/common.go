@@ -11,10 +11,10 @@ import (
 )
 
 type UserHandler struct {
-	Service *services.UserService
+	Service *services.DBServ
 }
 
-func NewUserHandler(service *services.UserService) *UserHandler {
+func NewUserHandler(service *services.DBServ) *UserHandler {
 	return &UserHandler{Service: service}
 }
 
@@ -36,8 +36,6 @@ func GetSubFromClaims(c *http.Cookie, env env.Config) (int, error) {
 	if err := j.ValidateJwt(); err != nil {
 		return 0, err
 	}
-	fmt.Println(j.AccessClaims)
-
 	sub, ok := j.AccessClaims["sub"].(float64)
 	if !ok {
 		return 0, fmt.Errorf("sub claim not found or invalid type")
@@ -48,11 +46,4 @@ func GetSubFromClaims(c *http.Cookie, env env.Config) (int, error) {
 func handleServerError(w http.ResponseWriter, msg string, err error) {
 	log.Println(msg+":", err)
 	http.Error(w, err.Error(), http.StatusInternalServerError)
-}
-
-func getStatusCode(exist bool) int {
-	if exist {
-		return http.StatusOK
-	}
-	return http.StatusCreated
 }

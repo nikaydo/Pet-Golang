@@ -8,6 +8,17 @@ import (
 	"net/http"
 )
 
+// MakeTransactions
+// @Summary MakeTransactions
+// @Description MakeTransactions
+// @Tags user
+// @Accept json
+// @Produce json
+// @Param transaction body models.Transaction true "Transaction"
+// @Success 201 {object} models.Transaction
+// @Failure 500
+// @Security ApiKeyAuth
+// @Router /user/newtransaction [post]
 func (h *UserHandler) MakeTransactions(w http.ResponseWriter, r *http.Request) {
 	var t models.Transaction
 	if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
@@ -30,6 +41,7 @@ func (h *UserHandler) MakeTransactions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	t.UserID = id
+	fmt.Println(t)
 	if err = h.Service.NewTransactions(t); err != nil {
 		handleServerError(w, "Failed to create transaction", err)
 		return

@@ -11,14 +11,14 @@ type Auth struct {
 
 type Balance struct {
 	ID     int     `json:"-"`
-	UserID int     `json:"userid"`
+	UserID int     `json:"-"`
 	Amount float32 `json:"Amount,omitempty"`
 }
 
 type Transaction struct {
 	ID     int     `json:"-"`
 	UserID int     `json:"-"`
-	Amount float32 `json:"money"`
+	Amount float32 `json:"ammount"`
 	Type   string  `json:"type"`
 	Date   string  `json:"-"`
 	Note   string  `json:"note,omitempty"`

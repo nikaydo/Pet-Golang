@@ -1,22 +1,22 @@
 package handlers
 
 import (
-	"encoding/json"
 	env "main/internal/config"
 	"net/http"
+	"strconv"
 )
 
-// GetBalance
-// @Summary GetBalance
-// @Description GetBalance
+// DelTrans
+// @Summary DelTrans
+// @Description DelTrans
 // @Tags user
 // @Accept json
 // @Produce json
-// @Success 200 {object} models.Balance
+// @Success 200
 // @Failure 500
 // @Security ApiKeyAuth
-// @Router /user/balance [get]
-func (h *UserHandler) GetBalance(w http.ResponseWriter, r *http.Request) {
+// @Router /user/deleteTrans  [delete]
+func (h *UserHandler) DelTrans(w http.ResponseWriter, r *http.Request) {
 	c, err := r.Cookie("jwt")
 	if err != nil {
 		handleServerError(w, "Unauthorized: token not found", err)
@@ -27,20 +27,21 @@ func (h *UserHandler) GetBalance(w http.ResponseWriter, r *http.Request) {
 		handleServerError(w, "could not get config", err)
 		return
 	}
-	id, err := GetSubFromClaims(c, cfg)
+	id := r.URL.Query()["id"]
+	n, err := strconv.Atoi(id[0])
 	if err != nil {
 		handleServerError(w, err.Error(), err)
 		return
 	}
-	money, err := h.Service.Balance(id)
+	user_id, err := GetSubFromClaims(c, cfg)
 	if err != nil {
 		handleServerError(w, err.Error(), err)
 		return
 	}
-	jsonData, err := json.Marshal(money)
-	if err != nil {
-		handleServerError(w, "Error marshalling response", err)
+	if err = h.Service.DelTrans(user_id, n); err != nil {
+		handleServerError(w, "Error deleting transactions", err)
 		return
 	}
-	w.Write([]byte(jsonData))
+	w.WriteHeader(http.StatusOK)
+
 }

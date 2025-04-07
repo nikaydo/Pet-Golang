@@ -1,0 +1,198 @@
+definitions:
+  models.Auth:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  models.Balance:
+    properties:
+      Amount:
+        type: number
+    type: object
+  models.Transaction:
+    properties:
+      ammount:
+        type: number
+      note:
+        type: string
+      tag:
+        type: string
+      type:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API for expense tracker
+  title: Expense Tracker API
+  version: "1.0"
+paths:
+  /register:
+    post:
+      consumes:
+      - application/json
+      description: Register and add in database
+      parameters:
+      - description: Auth
+        in: body
+        name: auth
+        required: true
+        schema:
+          $ref: '#/definitions/models.Auth'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "409":
+          description: Conflict
+          schema:
+            type: string
+      summary: Register
+      tags:
+      - Auth
+  /signin:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate a user and generate JWT tokens
+      parameters:
+      - description: Auth
+        in: body
+        name: auth
+        required: true
+        schema:
+          $ref: '#/definitions/models.Auth'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "409":
+          description: Conflict
+          schema:
+            type: string
+      summary: Sign in
+      tags:
+      - Auth
+  /user/balance:
+    get:
+      consumes:
+      - application/json
+      description: GetBalance
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Balance'
+        "500":
+          description: Internal Server Error
+      security:
+      - ApiKeyAuth: []
+      summary: GetBalance
+      tags:
+      - user
+  /user/deleteTrans:
+    delete:
+      consumes:
+      - application/json
+      description: DelTrans
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "500":
+          description: Internal Server Error
+      security:
+      - ApiKeyAuth: []
+      summary: DelTrans
+      tags:
+      - user
+  /user/newtransaction:
+    post:
+      consumes:
+      - application/json
+      description: MakeTransactions
+      parameters:
+      - description: Transaction
+        in: body
+        name: transaction
+        required: true
+        schema:
+          $ref: '#/definitions/models.Transaction'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Transaction'
+        "500":
+          description: Internal Server Error
+      security:
+      - ApiKeyAuth: []
+      summary: MakeTransactions
+      tags:
+      - user
+  /user/tag:
+    get:
+      consumes:
+      - application/json
+      description: SearchTags
+      parameters:
+      - description: name
+        in: query
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "500":
+          description: Internal Server Error
+      security:
+      - ApiKeyAuth: []
+      summary: SearchTags
+      tags:
+      - user
+  /user/transactions:
+    get:
+      consumes:
+      - application/json
+      description: GetTransactions
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Transaction'
+            type: array
+        "500":
+          description: Internal Server Error
+      security:
+      - ApiKeyAuth: []
+      summary: GetTransactions
+      tags:
+      - user
+swagger: "2.0"

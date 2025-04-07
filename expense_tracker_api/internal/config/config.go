@@ -3,6 +3,7 @@ package env
 import (
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -37,14 +38,21 @@ type Server struct {
 }
 
 func GetConfig() Config {
-	file, err := os.ReadFile("../config/config.yaml")
+	wd, err := os.Getwd()
 	if err != nil {
-		log.Fatalf("Error reading file: %v", err)
+		log.Fatalf("Error getting working directory: %v", err)
 	}
+	configPath := filepath.Join(wd, "/config/config.yaml")
+	file, err := os.ReadFile(configPath)
+	if err != nil {
+		log.Fatalf("Error reading config file: %v", err)
+	}
+
 	var config Config
 	err = yaml.Unmarshal(file, &config)
 	if err != nil {
-		log.Fatalf("Error unmarshalling: %v", err)
+		log.Fatalf("Error unmarshalling config: %v", err)
 	}
+
 	return config
 }

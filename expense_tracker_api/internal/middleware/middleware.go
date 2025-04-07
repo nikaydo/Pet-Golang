@@ -11,7 +11,7 @@ import (
 )
 
 type Middleware struct {
-	File *rep.File
+	File *rep.Database
 }
 
 func (f Middleware) CheckJWT(next http.Handler) http.Handler {
@@ -19,7 +19,7 @@ func (f Middleware) CheckJWT(next http.Handler) http.Handler {
 		c, err := r.Cookie("jwt")
 		if err != nil {
 			log.Println("Error getting cookie:", err)
-			http.Error(w, "Unauthorized: token not found", http.StatusUnauthorized)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 		j := myjwt.JwtTokens{AccessToken: c.Value}

@@ -1,6 +1,7 @@
 package router
 
 import (
+	_ "main/docs"
 	env "main/internal/config"
 	handler "main/internal/handlers"
 	m "main/internal/middleware"
@@ -9,10 +10,10 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
-func Router(e env.Config, handler *handler.UserHandler, userRepo *rep.File) http.Handler {
-
+func Router(e env.Config, handler *handler.UserHandler, userRepo *rep.Database) http.Handler {
 	mid := m.Middleware{File: userRepo}
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -26,7 +27,12 @@ func Router(e env.Config, handler *handler.UserHandler, userRepo *rep.File) http
 		r.Get("/balance", handler.GetBalance)
 		r.Get("/transactions", handler.GetTransactions)
 		r.Post("/newtransaction", handler.MakeTransactions)
+		r.Delete("/deleteTrans", handler.DelTrans)
+		r.Get("/logout", handler.Logout)
+		r.Post("/tag", handler.SearchTags)
 	})
-	r.Post("/auth", handler.AuthUser)
+	r.Post("/signin", handler.SignIn)
+	r.Post("/register", handler.Register)
+	r.Get("/swagger/*", httpSwagger.WrapHandler)
 	return r
 }

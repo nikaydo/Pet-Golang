@@ -6,7 +6,7 @@ keys:
 ttl:
   accessToken: 1m
   refreshToken : 1h
-  cookie : 10m
+  cookie : 24h
 
 server:
   host : "localhost"
