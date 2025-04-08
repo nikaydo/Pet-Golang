@@ -41,10 +41,6 @@ type JwtTokens struct {
 	Env           env.Config
 }
 
-func (j *JwtTokens) GetEnv() {
-	j.Env = env.GetConfig()
-}
-
 func (j *JwtTokens) CreateTokens(id int, username string, role string) error {
 	err := j.CreateJwtToken(id, username, role)
 	if err != nil {
@@ -56,6 +52,7 @@ func (j *JwtTokens) CreateTokens(id int, username string, role string) error {
 		log.Println("Error creating refresh token:", err)
 		return err
 	}
+
 	return nil
 
 }
@@ -91,6 +88,10 @@ func (j *JwtTokens) ValidateJwt() error {
 	})
 	if err != nil {
 		if err.Error() == "Token is expired" {
+			j.AccessClaims, err = setClaims(token)
+			if err != nil {
+				return err
+			}
 			return ErrTokenExpired
 		}
 		return err
@@ -111,6 +112,10 @@ func (j *JwtTokens) ValidateRefresh() error {
 	})
 	if err != nil {
 		if err.Error() == "Token is expired" {
+			j.RefreshClaims, err = setClaims(token)
+			if err != nil {
+				return err
+			}
 			return ErrTokenExpired
 		}
 		return err
@@ -123,19 +128,10 @@ func (j *JwtTokens) ValidateRefresh() error {
 }
 
 func setClaims(token *jwt.Token) (jwt.MapClaims, error) {
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		if exp, ok := claims["exp"].(float64); ok {
-			if time.Now().Unix() > int64(exp) {
-				return nil, ErrTokenExpired
-			}
-		} else {
-			return nil, ErrExpNotFound
-		}
-		cl, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			return nil, ErrInvalidToken
-		}
-		return cl, nil
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, ErrInvalidToken
 	}
-	return nil, ErrInvalidToken
+
+	return claims, nil
 }

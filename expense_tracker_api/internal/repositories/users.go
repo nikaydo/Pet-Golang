@@ -23,7 +23,7 @@ func (f *Database) UpdateRefreshToken(u models.User) error {
 		return err
 	}
 	return nil
-}
+} 
 func (f *Database) UserExists(a models.Auth) (models.User, string, error) {
 	u := models.User{Username: a.Username, Password: a.Password}
 	row := f.DB.QueryRow("SELECT id, username,password_hash,refresh_token FROM users WHERE username = :username;",

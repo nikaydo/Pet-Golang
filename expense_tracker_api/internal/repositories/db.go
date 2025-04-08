@@ -1,8 +1,11 @@
 package repositories
 
 import (
-	"database/sql"
 	"errors"
+	env "main/internal/config"
+	db "main/internal/db"
+
+	"github.com/jmoiron/sqlx"
 )
 
 var (
@@ -10,11 +13,11 @@ var (
 )
 
 type Database struct {
-	DB *sql.DB
+	DB *sqlx.DB
 }
 
-func NewRepository(DB *sql.DB) *Database {
-	return &Database{DB: DB}
+func NewRepository(e *env.Config) *Database {
+	return &Database{DB: db.InitDB(e.DB.Path)}
 }
 
 func (f *Database) MakeTable() error {

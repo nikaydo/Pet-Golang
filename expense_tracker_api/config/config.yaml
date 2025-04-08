@@ -4,7 +4,7 @@ keys:
   secretForAES : "12345678901234567890123456789012"
 
 ttl:
-  accessToken: 1m
+  accessToken: 5s
   refreshToken : 1h
   cookie : 24h
 

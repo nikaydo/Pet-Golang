@@ -6,12 +6,12 @@ import (
 	env "main/internal/config"
 	h "main/internal/handlers"
 	myjwt "main/internal/jwt"
-	rep "main/internal/repositories"
+	"main/internal/services"
 	"net/http"
 )
 
 type Middleware struct {
-	File *rep.Database
+	Service *services.DBServ
 }
 
 func (f Middleware) CheckJWT(next http.Handler) http.Handler {
@@ -22,8 +22,12 @@ func (f Middleware) CheckJWT(next http.Handler) http.Handler {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		j := myjwt.JwtTokens{AccessToken: c.Value}
-		j.GetEnv()
+		cfg, ok := r.Context().Value("config").(env.Config)
+		if !ok {
+			http.Error(w, "Error getting config", http.StatusInternalServerError)
+			return
+		}
+		j := myjwt.JwtTokens{AccessToken: c.Value, Env: cfg}
 		err = j.ValidateJwt()
 		if err != nil {
 			if err == myjwt.ErrTokenExpired {
@@ -33,7 +37,7 @@ func (f Middleware) CheckJWT(next http.Handler) http.Handler {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
 				}
-				u, err := f.File.GetUserByUsername(name)
+				u, err := f.Service.GetUser(name, cfg)
 				if err != nil {
 					log.Println("Error getting refresh token:", err)
 					http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -52,22 +56,24 @@ func (f Middleware) CheckJWT(next http.Handler) http.Handler {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
 				}
-				err = f.File.UpdateRefreshToken(u)
+				err = f.Service.UpdateRefreshToken(u, cfg)
 				if err != nil {
 					log.Println("Error updating refresh token:", err)
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
 				}
-				http.SetCookie(w, h.MakeCookie("jwt", j.AccessToken, 30))
+				http.SetCookie(w, h.MakeCookie("jwt", j.AccessToken, j.Env.TTL.Cookie))
+				next.ServeHTTP(w, r)
+				log.Println("Token refreshed successfully")
+				return
 			}
-			log.Println("Error validating token:", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-
 		next.ServeHTTP(w, r)
 	})
 }
+
 func ConfigMiddleware(e env.Config) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

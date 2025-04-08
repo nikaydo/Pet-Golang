@@ -1,29 +1,30 @@
 # Expense Tracker API
 
-This is the Expense Tracker API, a backend service designed to manage user accounts, handle transactions, and track balances. It is built using Go (Golang) and utilizes various libraries and packages to ensure security, efficiency, and scalability.
+The Expense Tracker API is designed for managing user accounts, processing transactions, and tracking balances. Built with Go (Golang), it leverages various libraries and packages to ensure security, efficiency, and scalability.
 
 ## Tech Stack
 
-- **Language**: Go (Golang)
-- **Database**: SQLite (via `modernc.org/sqlite` package)
-- **HTTP Router**: chi
+- **Programming Language**: Go (Golang)
+- **Database**: SQLite (using the `modernc.org/sqlite` package)
+- **HTTP Routing**: chi
 - **Authentication**: JWT (JSON Web Tokens) for secure user authentication
 - **Cryptography**: bcrypt for password hashing and AES for encrypting refresh tokens
 
 ## Project Structure
 
-- `internal/config`: Configuration files and environments settings.
+- `internal/config`: Configuration files and environment settings.
 - `internal/db`: Database connection and setup.
 - `internal/repositories`: Data access layer for interacting with the database.
 - `internal/services`: Business logic layer for handling core application functionality.
 - `internal/handlers`: HTTP handlers for managing API endpoints.
-- `internal/middleware`: Middleware functions for handling cross-cutting concerns like authentication.
-- `internal/jwt`: JWT token generation and validation logic.
+- `internal/middleware`: Middleware for handling cross-cutting concerns like authentication.
+- `internal/jwt`: Logic for generating and validating JWT tokens.
 - `internal/router`: HTTP routing setup.
 
 ## Key Features
 
-- **User Management**: Register new users, authenticate existing users, and manage user details securely.
-- **Transaction Management**: Record and retrieve user transactions with income and expense tracking.
+- **User Management**: Register new users, authenticate existing users, and securely manage user data.
+- **Transaction Management**: Record and retrieve user transactions, tracking income and expenses.
 - **Balance Tracking**: Maintain and update user balances based on transactions.
 - **Secure Authentication**: Implement JWT-based authentication to ensure secure access to user data.
+

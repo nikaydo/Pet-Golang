@@ -28,34 +28,35 @@ func (f *Database) Transactions(id int) (models.Tlist, error) {
 		return models.Tlist{}, err
 	}
 	var res models.Tlist
-	for row.Next() {
-		t := models.Transaction{}
-		err := row.Scan(&t.ID, &t.Amount, &t.Type, &t.Date, &t.Note, &t.Tag)
-		if err != nil {
-			return models.Tlist{}, err
-		}
-		switch t.Type {
-		case "outcome":
-			res.Outcome = append(res.Outcome, t)
-		case "income":
-			res.Income = append(res.Income, t)
-		}
+	res, err = transForm(row)
+	if err != nil {
+		return models.Tlist{}, err
 	}
 	return res, nil
-
 }
-func (f *Database) DelTrans(user_id, id int) error {
-	_, err := f.DB.Exec("DELETE FROM transactions WHERE user_id = :user_id AND id = :id;",
-		sql.Named("user_id", id),
-		sql.Named("id", id))
+func (f *Database) DelTrans(user_id int, id []int) error {
+	query := "DELETE FROM transactions WHERE user_id = :user_id AND id IN (:id);"
+	query, args, err := sqlx.Named(query, map[string]interface{}{
+		"user_id": user_id,
+		"id":      id,
+	})
+	if err != nil {
+		return err
+	}
+	query, args, err = sqlx.In(query, args...)
+	if err != nil {
+		return err
+	}
+	query = f.DB.Rebind(query)
+	_, err = f.DB.Exec(query, args...)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (f *Database) SearchTags(id int, tags ...string) (models.Tlist, error) {
-	query := `SELECT id, amount, type, date, note, tag FROM transactions WHERE user_id = :user_id AND tag IN (:tags)`
+func (f *Database) SearchTags(id int, tags []string) (models.Tlist, error) {
+	query := `SELECT id, amount, type, date, note, tag FROM transactions WHERE user_id = :user_id AND tag IN (:tags);`
 	query, args, err := sqlx.Named(query, map[string]interface{}{
 		"user_id": id,
 		"tags":    tags,
@@ -67,24 +68,14 @@ func (f *Database) SearchTags(id int, tags ...string) (models.Tlist, error) {
 	if err != nil {
 		return models.Tlist{}, err
 	}
-	query = sqlx.Rebind(sqlx.NAMED, query)
+	query = f.DB.Rebind(query)
 	rows, err := f.DB.Query(query, args...)
 	if err != nil {
 		return models.Tlist{}, err
 	}
-	var res models.Tlist
-	for rows.Next() {
-		t := models.Transaction{}
-		err := rows.Scan(&t.ID, &t.Amount, &t.Type, &t.Date, &t.Note, &t.Tag)
-		if err != nil {
-			return models.Tlist{}, err
-		}
-		switch t.Type {
-		case "outcome":
-			res.Outcome = append(res.Outcome, t)
-		case "income":
-			res.Income = append(res.Income, t)
-		}
+	res, err := transForm(rows)
+	if err != nil {
+		return models.Tlist{}, err
 	}
 	return res, nil
 }

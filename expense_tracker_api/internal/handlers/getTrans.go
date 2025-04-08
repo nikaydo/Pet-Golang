@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
-	env "main/internal/config"
+	myjwt "main/internal/jwt"
 	"net/http"
 )
 
@@ -17,20 +17,16 @@ import (
 // @Security ApiKeyAuth
 // @Router /user/transactions [get]
 func (h *UserHandler) GetTransactions(w http.ResponseWriter, r *http.Request) {
-	c, err := r.Cookie("jwt")
+	c, cfg, err := getFrom(r)
 	if err != nil {
-		handleServerError(w, "Unauthorized: token not found", err)
-		return
-	}
-	cfg, ok := r.Context().Value("config").(env.Config)
-	if !ok {
-		handleServerError(w, "could not get config", err)
+		handleServerError(w, err.Error(), err)
 		return
 	}
 	id, err := GetSubFromClaims(c, cfg)
 	if err != nil {
-		handleServerError(w, err.Error(), err)
-		return
+		if err != myjwt.ErrTokenExpired {
+			handleServerError(w, err.Error(), err)
+		}
 	}
 	tList, err := h.Service.Transactions(id)
 	if err != nil {

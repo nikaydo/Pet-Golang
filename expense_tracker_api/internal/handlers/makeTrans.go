@@ -2,8 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
-	env "main/internal/config"
+	myjwt "main/internal/jwt"
 	"main/internal/models"
 	"net/http"
 )
@@ -25,23 +24,19 @@ func (h *UserHandler) MakeTransactions(w http.ResponseWriter, r *http.Request) {
 		handleServerError(w, "Invalid request body", err)
 		return
 	}
-	c, err := r.Cookie("jwt")
+	c, cfg, err := getFrom(r)
 	if err != nil {
-		handleServerError(w, "Unauthorized: token not found", err)
-		return
-	}
-	cfg, ok := r.Context().Value("config").(env.Config)
-	if !ok {
-		handleServerError(w, "Could not get config", fmt.Errorf("config missing in context"))
+		handleServerError(w, err.Error(), err)
 		return
 	}
 	id, err := GetSubFromClaims(c, cfg)
 	if err != nil {
-		handleServerError(w, "Invalid token", err)
-		return
+		if err != myjwt.ErrTokenExpired {
+			handleServerError(w, err.Error(), err)
+		}
 	}
+
 	t.UserID = id
-	fmt.Println(t)
 	if err = h.Service.NewTransactions(t); err != nil {
 		handleServerError(w, "Failed to create transaction", err)
 		return

@@ -33,7 +33,7 @@ func (h *UserHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	j := myjwt.JwtTokens{Env: cfg}
-	exist, u, err := h.Service.IsUserExists(auth)
+	exist, u, err := h.Service.IsUserExists(auth, cfg)
 	if err != nil {
 		handleServerError(w, "Error checking user existence", err)
 		return
@@ -46,7 +46,8 @@ func (h *UserHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 		handleServerError(w, "Failed to generate JWT tokens", err)
 		return
 	}
-	if err = h.Service.UpdateRefreshToken(u); err != nil {
+	u.Refresh = j.RefreshToken
+	if err = h.Service.UpdateRefreshToken(u, cfg); err != nil {
 		handleServerError(w, "Failed to update refresh token", err)
 		return
 	}

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	env "main/internal/config"
-	db "main/internal/db"
 	handler "main/internal/handlers"
 	rep "main/internal/repositories"
 	rt "main/internal/router"
@@ -17,15 +16,14 @@ import (
 // @host      localhost:8080
 func main() {
 	e := env.GetConfig()
-	database := db.InitDB(e.DB.Path)
-	userRepo := rep.NewRepository(database)
-	err := userRepo.MakeTable()
+	Database := rep.NewRepository(&e)
+	err := Database.MakeTable()
 	if err != nil {
 		panic(err)
 	}
-	userService := services.NewUserService(userRepo)
-	h := handler.NewUserHandler(userService)
-	if err := http.ListenAndServe(fmt.Sprintf("%s:%d", e.Server.Host, e.Server.Port), rt.Router(e, h, userRepo)); err != nil {
+	Serv := services.NewDBServ(Database)
+	h := handler.NewUserHandler(Serv)
+	if err := http.ListenAndServe(fmt.Sprintf("%s:%d", e.Server.Host, e.Server.Port), rt.Router(e, h, Serv)); err != nil {
 		fmt.Printf("Пу пу пу: %s", err.Error())
 		return
 	}

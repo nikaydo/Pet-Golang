@@ -3,7 +3,6 @@ package repositories
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"main/internal/models"
 )
 
@@ -27,7 +26,6 @@ func (f *Database) Balance(id int) (float64, error) {
 }
 func (f *Database) UpdateBalance(b models.Balance, t string) error {
 	var r string
-	fmt.Println(b)
 	switch t {
 	case "income":
 		r = "UPDATE balance SET amount = amount + :amount WHERE id = :id;"

@@ -34,7 +34,9 @@ func MakeCookie(name, value string, t time.Duration) *http.Cookie {
 func GetSubFromClaims(c *http.Cookie, env env.Config) (int, error) {
 	j := myjwt.JwtTokens{AccessToken: c.Value, Env: env}
 	if err := j.ValidateJwt(); err != nil {
-		return 0, err
+		if err != myjwt.ErrTokenExpired {
+			return 0, err
+		}
 	}
 	sub, ok := j.AccessClaims["sub"].(float64)
 	if !ok {
@@ -46,4 +48,16 @@ func GetSubFromClaims(c *http.Cookie, env env.Config) (int, error) {
 func handleServerError(w http.ResponseWriter, msg string, err error) {
 	log.Println(msg+":", err)
 	http.Error(w, err.Error(), http.StatusInternalServerError)
+}
+
+func getFrom(r *http.Request) (*http.Cookie, env.Config, error) {
+	c, err := r.Cookie("jwt")
+	if err != nil {
+		return nil, env.Config{}, err
+	}
+	cfg, ok := r.Context().Value("config").(env.Config)
+	if !ok {
+		return nil, env.Config{}, fmt.Errorf("config missing in context")
+	}
+	return c, cfg, nil
 }
